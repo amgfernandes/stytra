@@ -10,7 +10,20 @@ NodeOutput = namedtuple("NodeOutput", "messages data")
 
 
 class PipelineNode(Node):
+    """General class for nodes that run a part of the image processing.
+    """
     def __init__(self, *args, run_every=1, **kwargs):
+        """
+            Parameters
+            ----------
+            run_every : if > 1, the node will run only every run_every iterations
+            of the tracking process. Proxy for asynchronous flow when multiple functions
+            with different performances have to run in parallel.
+
+            Returns
+            -------
+
+            """
         super().__init__(*args, **kwargs)
         self._params = None
         self.diagnostic_image_options = []
