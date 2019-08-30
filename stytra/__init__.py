@@ -164,7 +164,8 @@ class Stytra:
                 if not class_kwargs["tracking"].get("embedded", True):
                     class_kwargs["calibrator"] = CircleCalibrator()
 
-            if recording:
+            if class_kwargs["recording"]:
+                #class_kwargs["calibrator"]
                 base = VideoRecordingExperiment
 
         # Stytra logo
@@ -177,7 +178,6 @@ class Stytra:
         app.setWindowIcon(app_icon)
 
         pg.setConfigOptions(imageAxisOrder="row-major")
-
         self.exp = base(**class_kwargs)
 
         self.exp.start_experiment()

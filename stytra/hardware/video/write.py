@@ -28,7 +28,7 @@ class VideoWriter(FrameProcess):
         ouput movie bitrate
     """
 
-    def __init__(self, input_queue, finished_signal, saving_evt, log_format="hdf5"):
+    def __init__(self, input_queue, finished_signal, saving_evt):
         super().__init__()
         self.filename_queue = Queue()
         self.filename_base = None
@@ -38,9 +38,9 @@ class VideoWriter(FrameProcess):
         self.reset_signal = Event()
         self.times = []
         self.recording = False
-        self.log_format = log_format
 
     def run(self):
+        print("running")
         while True:
             toggle_save = False
             self.reset()
@@ -99,10 +99,12 @@ class H5VideoWriter(VideoWriter):
         self.frames.append(frame)
 
     def complete(self):
+        print("completing")
         super().complete()
         dd.io.save(
             self.filename_base + "video.hdf5", np.array(self.frames, dtype=np.uint8)
         )
+        print("saved", self.filename_base + "video.hdf5")
 
 
 class StreamingVideoWriter(VideoWriter):
@@ -153,3 +155,7 @@ class StreamingVideoWriter(VideoWriter):
 
         # Close the file
         self.container.close()
+
+
+video_writers_dict = dict(hdf5=H5VideoWriter,
+                          mp4=StreamingVideoWriter)

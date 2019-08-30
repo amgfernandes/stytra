@@ -1,7 +1,7 @@
 from multiprocessing import Event, Queue
 from stytra.collectors import FramerateQueueAccumulator
 
-from stytra.hardware.video.write import H5VideoWriter
+from stytra.hardware.video.write import video_writers_dict
 
 from stytra.experiments.tracking_experiments import CameraVisualExperiment
 from stytra.tracking.tracking_process import DispatchProcess
@@ -35,19 +35,20 @@ class VideoRecordingExperiment(CameraVisualExperiment):
         )
         self.gui_timer.timeout.connect(self.acc_tracking_framerate.update_list)
 
-        # self.filename_queue = Queue()
-
         self.set_id()
-        self.video_writer = H5VideoWriter(
-            self.frame_dispatcher.output_frame_queue, self.finished_evt, self.saving_evt
+        video_writer_class = video_writers_dict[kwargs["recording"].pop(
+            "extension")]
+        self.video_writer = video_writer_class(
+            self.frame_dispatcher.output_frame_queue,
+            self.finished_evt, self.saving_evt, **kwargs["recording"]
         )
 
         self.video_writer.start()
 
     def start_protocol(self):
-        self.video_writer.filename_queue.put(self.folder_name)
         self.saving_evt.set()
         self.video_writer.reset_signal.set()
+        self.video_writer.filename_queue.put(self.folder_name)
         super().start_protocol()
 
     def end_protocol(self, save=True):
