@@ -4,7 +4,6 @@ import qdarkstyle
 from PyQt5.QtWidgets import QApplication
 from stytra.stimulation.stimuli import Stimulus
 from PyQt5.QtWidgets import QMessageBox
-from PyQt5.QtWidgets import QPushButton
 
 
 # Here ve define an empty protocol:
@@ -12,7 +11,7 @@ class FlashProtocol(Protocol):
     name = "empty_protocol"  # every protocol must have a name.
 
     def get_stim_sequence(self):
-        return [Stimulus(duration=5.),]
+        return [Stimulus(duration=5.0)]
 
 
 class CustomExperiment(Experiment):
@@ -25,11 +24,10 @@ class CustomExperiment(Experiment):
         self.start = False
 
         msgBox = QMessageBox()
-        msgBox.setText('Start the protocol when ready')
+        msgBox.setText("Start the protocol when ready")
         msgBox.setStandardButtons(QMessageBox.Ok)
         ret = msgBox.exec_()
         super().start_protocol()
-
 
 
 if __name__ == "__main__":
@@ -40,7 +38,6 @@ if __name__ == "__main__":
     app = QApplication([])
     app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
     protocol = FlashProtocol()
-    exp = CustomExperiment(protocol=protocol,
-                     app=app)
+    exp = CustomExperiment(protocol=protocol, app=app)
     exp.start_experiment()
     app.exec_()

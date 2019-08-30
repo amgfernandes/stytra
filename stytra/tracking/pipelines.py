@@ -41,7 +41,7 @@ class PipelineNode(Node):
         pass
 
     def setup(self):
-        self._params = Parametrized(params=self._process, name="tracking+"+self.name)
+        self._params = Parametrized(params=self._process, name="tracking+" + self.name)
 
     @property
     def output_type_changed(self):
@@ -52,6 +52,14 @@ class PipelineNode(Node):
         return self.separator.join([""] + [str(node.name) for node in self.path])
 
     def process(self, *inputs) -> NodeOutput:
+        out = self._process(*inputs, **self._params.params.values)
+        try:
+            assert isinstance(out, NodeOutput)
+        except AssertionError:
+            raise TypeError(
+                "Output type of " + self.name + " is wrong, " + str(type(out))
+            )
+        return out
 
         if np.mod(self._counter, self._run_every) == 0:
             out = self._process(*inputs, **self._params.params.values)
@@ -76,6 +84,10 @@ class ImageToImageNode(PipelineNode):
     def output_type_changed(self):
         return any(c.output_type_changed for c in self.children)
 
+    def acknowledge_changes(self):
+        for c in self.children:
+            c.acknowledge_changes()
+
 
 class SourceNode(ImageToImageNode):
     def __init__(self, *args, **kwargs):
@@ -95,9 +107,11 @@ class ImageToDataNode(PipelineNode):
     @property
     def output_type_changed(self):
         if self._output_type_changed:
-            self._output_type_changed = False
             return True
         return False
+
+    def acknowledge_changes(self):
+        self._output_type_changed = False
 
     def _process(self):
         # Node processing code
@@ -140,15 +154,22 @@ class Pipeline:
                 if tree is not None:
                     tree.add(node._params)
                 self.node_dict[node.strpath] = node
-            diag_images.extend((node.strpath+"/"+imname for imname in node.diagnostic_image_options))
-        self.all_params["diagnostics"] = Parametrized(name="tracking/diagnostics",
-                                                      params=dict(image=Param("unprocessed",
-                                                                              ["unprocessed"]+diag_images)),
-                                                      tree=tree)
-        self.all_params["reset"] = Parametrized(name="tracking/reset",
-                                                params=dict(reset=Param(False,
-                                                                        gui="button")),
-                                                tree=tree)
+            diag_images.extend(
+                (
+                    node.strpath + "/" + imname
+                    for imname in node.diagnostic_image_options
+                )
+            )
+        self.all_params["diagnostics"] = Parametrized(
+            name="tracking/diagnostics",
+            params=dict(image=Param("unprocessed", ["unprocessed"] + diag_images)),
+            tree=tree,
+        )
+        self.all_params["reset"] = Parametrized(
+            name="tracking/reset",
+            params=dict(reset=Param(False, gui="button")),
+            tree=tree,
+        )
 
     @property
     def diagnostic_image(self):
@@ -183,8 +204,9 @@ class Pipeline:
                     node.set_diagnostic = None
             else:
                 try:
-                    self.node_dict["/".join(imname.split("/")[:-1])].set_diagnostic \
-                        = imname.split("/")[-1]
+                    self.node_dict[
+                        "/".join(imname.split("/")[:-1])
+                    ].set_diagnostic = imname.split("/")[-1]
                 except KeyError:  # this can happen on reloading if the pipeline is changed
                     self.all_params["diagnostics"].image = "unprocessed"
         # reset group always exists, checks if there are actual changes (the second and)
@@ -197,25 +219,29 @@ class Pipeline:
         if isinstance(node, ImageToDataNode):
             return output
 
-        child_outputs = tuple(self.recursive_run(child, output.data)
-                   for child in node.children)
+        child_outputs = tuple(
+            self.recursive_run(child, output.data) for child in node.children
+        )
         if node._output_type is None or node.output_type_changed:
-            node._output_type = namedtuple("o",
-                                           chain.from_iterable(
-                                               map(lambda x:x.data._fields,
-                                                    child_outputs)))
+            node._output_type = namedtuple(
+                "o", chain.from_iterable(map(lambda x: x.data._fields, child_outputs))
+            )
+
         # collect all diagnostic messages and return a named tuple collecting
         # all the outputs
 
         # first element of the tuple concatenates all lists of diagnostic messages
         # second element makes a named tuple with fields from all the child named tuples
-        return NodeOutput(output.messages+list(chain.from_iterable(map(lambda x: x.messages,
-                                                             child_outputs))),
-                node._output_type(*(chain.from_iterable(
-                    map(lambda x: x.data, child_outputs)))))
+        output_tuple = node._output_type(
+            *(chain.from_iterable(map(lambda x: x.data, child_outputs)))
+        )
+        return NodeOutput(
+            output.messages
+            + list(chain.from_iterable(map(lambda x: x.messages, child_outputs))),
+            output_tuple,
+        )
 
     def run(self, input):
-        return self.recursive_run(self.root, input)
-
-
-
+        out = self.recursive_run(self.root, input)
+        self.root.acknowledge_changes()
+        return out
