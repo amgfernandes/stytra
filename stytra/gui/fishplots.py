@@ -11,7 +11,7 @@ from lightparam import Param, Parametrized
 from lightparam.gui import ParameterGui
 
 from scipy.ndimage.filters import gaussian_filter1d
-
+# random comment
 
 class StreamingPositionPlot(pg.GraphicsWindow):
     """Plot that displays the virtual position of the fish"""
